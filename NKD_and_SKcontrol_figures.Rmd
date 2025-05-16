@@ -1,0 +1,99 @@
+---
+title: "NKD_and_SKcontrol_figures"
+output: html_document
+---
+
+---
+title: "NK project figure"
+author: "Thihung"
+date: "2025-05-16"
+output: html_document
+---
+This is my NK project figure
+
+
+Let's loading some required packages.
+
+
+```{r}
+library(readxl)
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(stringr)
+library(patchwork)
+library(gridExtra)
+```
+
+
+Let's load some data.
+
+```{r}
+df <-read_excel("D:/PhD projects/Projects/North defectors/output/2024-NKD_result_designtable.xlsx", sheet="Sheet14")
+head(df,2)
+```
+
+Let's create year label.
+
+```{r}
+breaks <- 2003:2021
+labels <- paste0("'", substr(breaks, 3, 4))  # 2003 → '03
+```
+
+
+Let's calculate the percentages.
+
+```{r}
+df_percent <- df %>% 
+  mutate(
+    Total_NK = sum(NK),
+    Total_SK = sum(SK)
+  ) %>% 
+  group_by(Year) %>% 
+  mutate(
+    NK_rate = NK * 100 / Total_NK,
+    SK_rate = SK * 100 / Total_SK
+  )
+  # 2003 → '03
+```
+
+Let's reshape data.
+
+```{r}
+df_long <- df_percent %>% 
+  pivot_longer(
+    cols = c("NK_rate", "SK_rate"),
+    names_to = "Group",
+    values_to = "Percent"
+  )
+```
+
+
+Let's plot it.
+
+```{r}
+ggplot(df_long, aes(x = Year, y = Percent, fill = Group, group = Group)) +
+  geom_col(position = "dodge", width = 0.6) +
+  scale_fill_manual(
+    values = c("NK_rate" = "skyblue4", "SK_rate" = "coral4"),
+    labels = c("North Korean defectors", "South Korean controls")
+  ) +
+  scale_x_continuous(breaks = breaks, labels = labels) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  labs(
+    title = "Percentage of NK and SK by Year",
+    x = "Year",
+    y = "Percentage",
+    fill = "Group"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    legend.position = "top",
+    axis.line = element_line(color = "black"),
+    panel.grid.minor = element_blank()
+  )
+```
+
+
+
+
