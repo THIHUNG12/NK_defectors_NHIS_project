@@ -1,0 +1,87 @@
+---
+title: "How to define area"
+author: "Thihung"
+date: "2025-05-19"
+output: html_document
+---
+
+This is the method to extract the region
+
+Loading some necessary packages
+
+
+
+```{r}
+library(readxl)
+library(readr)
+library(dplyr) 
+library(stringr)
+library(janitor)
+library(tidyverse)
+
+```
+
+
+Import and clean region sheet
+
+```{r}
+region_data <- read_excel("D:/PhD projects/health insurance database format/NHIS data/Data practices/Detailed_definition_area.xlsx", sheet = "코드설명_동읍면") %>% 
+  select(SIDO_SGG_CD, SGG_NM, SIDO_NM)  %>%  # keep relevant columns
+  arrange(SIDO_SGG_CD) %>%
+  distinct(SIDO_SGG_CD, .keep_all = TRUE)
+head(region_data)
+
+```
+
+
+Import the BNC table and merge with region_data to get the information of region.
+Normaly the definition of region according to first 2 number of postcode: RVSN_ADDR_CD or SIDO_SGG_CD:
+Example: 11: Seoul 
+
+
+```{r}
+region_code <- read_delim("D:/PhD projects/health insurance database format/NHIS data/Data practices/TXT/nsc2_edu_inst.txt") %>% 
+  select(SGG_INST)
+
+region_old <- region_code %>%
+  mutate(SGG_INST = as.character(SGG_INST)) %>%
+  mutate(region_old = if_else(substr(SGG_INST, 1, 2) %in% c('11','26','27','28','29','30','31','36'),
+                              'urban', 'rural')) %>%count(region_old)
+print(region_old)
+```
+
+Underestimate region
+```{r}
+check <- region_data %>% 
+  filter(!substr(SIDO_SGG_CD,1,2) %in% c('11','26','27','28','29','30','31','36') &
+  str_detect(SGG_NM, "구|동|시"))
+head(check)  
+
+```
+Redefine region variable based on SGG_NM content
+Futher edit the region old:
+when area_full is rural then check the SGG_NM:
+if SGG_NM contain "구|동|시" then it is not rural --> it is city
+
+
+
+```{r}
+region_new <- region_code %>%
+  mutate(SGG_INST = as.character(SGG_INST)) %>%  # Convert to character
+  inner_join(region_data %>% select(SIDO_SGG_CD, SGG_NM, SIDO_NM), 
+             by = c("SGG_INST" = "SIDO_SGG_CD")) %>% 
+  mutate(
+    region_old = if_else(substr(SGG_INST, 1, 2) %in% c('11','26','27','28','29','30','31','36'),
+                              'urban', 'rural'),
+    area_detail = if_else(str_detect(SGG_NM, "구|동|시") | str_detect(SIDO_NM, "구|동|시"), 'urban', 'rural'),
+    region_new = if_else(region_old == 'urban' | area_detail == 'urban', 'urban', 'rural')
+  ) %>% count(region_new)
+print(region_new)
+
+```
+
+
+
+
+
+
